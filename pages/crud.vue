@@ -1,12 +1,81 @@
 <template>
   <div class="container py-5">
-    <h1 class="text-center mb-5">إدارة منتجات العطور</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h1 class="mb-2">إدارة منتجات العطور</h1>
+        <p class="text-muted">مرحباً {{ user?.email }}</p>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" @click="logout">
+          <i class="bi bi-box-arrow-right me-1"></i>
+          تسجيل الخروج
+        </button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
+          <i class="bi bi-plus-circle me-1"></i>
+          إضافة منتج جديد
+        </button>
+      </div>
+    </div>
 
-    <div class="d-flex justify-content-between mb-4">
-      <h2>قائمة المنتجات</h2>
-      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
-        <i class="fas fa-plus"></i> إضافة منتج جديد
-      </button>
+    <!-- Filter Controls -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h6 class="card-title mb-3">
+              <i class="bi bi-funnel me-2"></i>
+              تصفية المنتجات
+            </h6>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label for="categoryFilter" class="form-label">الفئة</label>
+                <select class="form-select" id="categoryFilter" v-model="filters.category">
+                  <option value="">جميع الفئات</option>
+                  <option value="man">رجالي</option>
+                  <option value="women">نسائي</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label for="bestSellerFilter" class="form-label">الأكثر مبيعاً</label>
+                <select class="form-select" id="bestSellerFilter" v-model="filters.bestSeller">
+                  <option value="">جميع المنتجات</option>
+                  <option value="true">الأكثر مبيعاً فقط</option>
+                  <option value="false">غير الأكثر مبيعاً</option>
+                </select>
+              </div>
+              <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-outline-secondary" @click="clearFilters">
+                  <i class="bi bi-x-circle me-1"></i>
+                  مسح التصفية
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Summary -->
+    <div class="row mb-3">
+      <div class="col-12">
+        <div class="alert alert-info d-flex justify-content-between align-items-center">
+          <div>
+            <i class="bi bi-info-circle me-2"></i>
+            <span v-if="filters.category || filters.bestSeller !== ''">
+              تم عرض {{ Object.keys(filteredProducts).length }} منتج من أصل {{ Object.keys(products).length }} منتج
+            </span>
+            <span v-else>
+              إجمالي المنتجات: {{ Object.keys(products).length }} منتج
+            </span>
+          </div>
+          <div v-if="filters.category || filters.bestSeller !== ''">
+            <button class="btn btn-sm btn-outline-info" @click="clearFilters">
+              <i class="bi bi-x-circle me-1"></i>
+              مسح التصفية
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="table-responsive">
@@ -22,30 +91,40 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-if="pending">
+          <tr v-if="loading">
             <td colspan="6" class="text-center">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">جار التحميل...</span>
               </div>
             </td>
           </tr>
-          <tr v-else-if="!products || Object.keys(products).length === 0">
+          <tr v-else-if="error">
+            <td colspan="6" class="text-center text-danger">
+              <i class="bi bi-exclamation-triangle me-2"></i>
+              {{ error }}
+            </td>
+          </tr>
+          <tr v-else-if="!filteredProducts || Object.keys(filteredProducts).length === 0">
             <td colspan="6" class="text-center">لا توجد منتجات متاحة</td>
           </tr>
-          <tr v-else v-for="(product, key) in products" :key="key">
+          <tr v-else v-for="(product, key) in filteredProducts" :key="key">
             <td>
               <img :src="product.image" :alt="product.name" style="width: 50px; height: 50px; object-fit: cover;" 
                    @error="$event.target.src = '/logo.png'">
             </td>
             <td>{{ product.name }}</td>
             <td>{{ product.price }} EGP</td>
-            <td>{{ product.category === 'man' ? 'رجالي' : 'نسائي' }}</td>
+            <td>
+              <span class="badge" :class="getCategoryBadgeClass(product.category)">
+                {{ getCategoryDisplayName(product.category) }}
+              </span>
+            </td>
             <td>
               <span v-if="product.best_seller === true" class="badge bg-success">
-                <i class="fas fa-check me-1"></i>نعم
+                <i class="bi bi-check me-1"></i>نعم
               </span>
               <span v-else class="badge bg-secondary">
-                <i class="fas fa-times me-1"></i>لا
+                <i class="bi bi-x me-1"></i>لا
               </span>
             </td>
             <td>
@@ -224,6 +303,10 @@
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: 'admin'
+})
+
 // SEO blocking - prevent indexing
 useHead({
   title: 'إدارة منتجات العطور',
@@ -234,17 +317,18 @@ useHead({
   ]
 })
 
-// Firebase REST API URL
-const FIREBASE_URL = 'https://guzel-1f032-default-rtdb.firebaseio.com/products'
+const { user, logout, initAuth, waitForAuth } = useAuth()
+const { 
+  getFirebaseData, 
+  setFirebaseData, 
+  updateFirebaseData, 
+  removeFirebaseData,
+  loading,
+  error
+} = useApi()
 
-// Reactive data with proper error handling
-const { data: products, pending, error, refresh } = await useFetch(`${FIREBASE_URL}.json`, {
-  default: () => ({}),
-  onResponseError({ response }) {
-    console.error('Error fetching products:', response._data)
-  }
-})
-
+// Reactive data
+const products = ref({})
 const adding = ref(false)
 const updating = ref(false)
 const deleting = ref(false)
@@ -274,6 +358,85 @@ const editingProduct = ref({
   best_seller: false
 })
 
+// Filter data
+const filters = ref({
+  category: '',
+  bestSeller: ''
+})
+
+// Computed property for filtered products
+const filteredProducts = computed(() => {
+  if (!products.value) return {}
+  
+  let filtered = { ...products.value }
+  
+  // Filter by category
+  if (filters.value.category) {
+    filtered = Object.fromEntries(
+      Object.entries(filtered).filter(([key, product]) => 
+        product.category === filters.value.category
+      )
+    )
+  }
+  
+  // Filter by best seller
+  if (filters.value.bestSeller !== '') {
+    const isBestSeller = filters.value.bestSeller === 'true'
+    filtered = Object.fromEntries(
+      Object.entries(filtered).filter(([key, product]) => 
+        product.best_seller === isBestSeller
+      )
+    )
+  }
+  
+  return filtered
+})
+
+// Clear filters function
+const clearFilters = () => {
+  filters.value.category = ''
+  filters.value.bestSeller = ''
+}
+
+// Load products on mount
+onMounted(async () => {
+  try {
+    // Initialize auth listener
+    const unsubscribe = initAuth()
+    
+    // Wait for auth to be ready
+    await waitForAuth()
+    
+    await loadProducts()
+    
+    // Load Bootstrap JS if not already loaded
+    if (typeof bootstrap === 'undefined') {
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js'
+      document.head.appendChild(script)
+    }
+    
+    // Cleanup on unmount
+    onUnmounted(() => {
+      if (unsubscribe) {
+        unsubscribe()
+      }
+    })
+  } catch (error) {
+    console.error('Error initializing CRUD page:', error)
+  }
+})
+
+// Load products from Firebase
+const loadProducts = async () => {
+  try {
+    const data = await getFirebaseData('/products')
+    products.value = data || {}
+  } catch (err) {
+    console.error('Error loading products:', err)
+  }
+}
+
 // Methods
 function editProduct(id, product) {
   editingProduct.value = {
@@ -302,42 +465,48 @@ function deleteProduct(id) {
 async function addProduct() {
   adding.value = true
   try {
-    const response = await $fetch(`${FIREBASE_URL}.json`, {
-      method: 'POST',
-      body: {
-        name: newProduct.value.name,
-        description: newProduct.value.description,
-        price: parseFloat(newProduct.value.price),
-        discount: parseInt(newProduct.value.discount) || 0,
-        image: newProduct.value.image,
-        category: newProduct.value.category,
-        meta_desc: newProduct.value.meta_desc,
-        best_seller: newProduct.value.best_seller === true
-      }
+    const productData = {
+      name: newProduct.value.name,
+      description: newProduct.value.description,
+      price: parseFloat(newProduct.value.price),
+      discount: parseInt(newProduct.value.discount) || 0,
+      image: newProduct.value.image,
+      category: newProduct.value.category,
+      meta_desc: newProduct.value.meta_desc,
+      best_seller: newProduct.value.best_seller === true,
+      created_at: new Date().toISOString(),
+      created_by: user.value?.email || 'unknown'
+    }
+    
+    await setFirebaseData('/products', {
+      ...products.value,
+      [Date.now().toString()]: productData
     })
     
-    if (response) {
-      alert('تمت إضافة المنتج بنجاح')
-      // Reset form
-      newProduct.value = {
-        name: '',
-        description: '',
-        price: 0,
-        discount: 0,
-        image: '',
-        category: '',
-        meta_desc: '',
-        best_seller: false
-      }
-      // Close modal
-      const modal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'))
-      modal.hide()
-      // Refresh data
-      await refresh()
+    // Show success message
+    showToast('تمت إضافة المنتج بنجاح', 'success')
+    
+    // Reset form
+    newProduct.value = {
+      name: '',
+      description: '',
+      price: 0,
+      discount: 0,
+      image: '',
+      category: '',
+      meta_desc: '',
+      best_seller: false
     }
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'))
+    modal.hide()
+    
+    // Refresh data
+    await loadProducts()
   } catch (error) {
     console.error('Error adding product:', error)
-    alert('حدث خطأ أثناء إضافة المنتج')
+    showToast('حدث خطأ أثناء إضافة المنتج', 'error')
   } finally {
     adding.value = false
   }
@@ -346,31 +515,33 @@ async function addProduct() {
 async function updateProduct() {
   updating.value = true
   try {
-    const response = await $fetch(`${FIREBASE_URL}/${editingProduct.value.id}.json`, {
-      method: 'PATCH',
-      body: {
-        name: editingProduct.value.name,
-        description: editingProduct.value.description,
-        price: parseFloat(editingProduct.value.price),
-        discount: parseInt(editingProduct.value.discount) || 0,
-        image: editingProduct.value.image,
-        category: editingProduct.value.category,
-        meta_desc: editingProduct.value.meta_desc,
-        best_seller: editingProduct.value.best_seller === true
-      }
-    })
-    
-    if (response) {
-      alert('تم تحديث المنتج بنجاح')
-      // Close modal
-      const modal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'))
-      modal.hide()
-      // Refresh data
-      await refresh()
+    const productData = {
+      name: editingProduct.value.name,
+      description: editingProduct.value.description,
+      price: parseFloat(editingProduct.value.price),
+      discount: parseInt(editingProduct.value.discount) || 0,
+      image: editingProduct.value.image,
+      category: editingProduct.value.category,
+      meta_desc: editingProduct.value.meta_desc,
+      best_seller: editingProduct.value.best_seller === true,
+      updated_at: new Date().toISOString(),
+      updated_by: user.value?.email || 'unknown'
     }
+    
+    await updateFirebaseData(`/products/${editingProduct.value.id}`, productData)
+    
+    // Show success message
+    showToast('تم تحديث المنتج بنجاح', 'success')
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'))
+    modal.hide()
+    
+    // Refresh data
+    await loadProducts()
   } catch (error) {
     console.error('Error updating product:', error)
-    alert('حدث خطأ أثناء تحديث المنتج')
+    showToast('حدث خطأ أثناء تحديث المنتج', 'error')
   } finally {
     updating.value = false
   }
@@ -379,36 +550,70 @@ async function updateProduct() {
 async function confirmDelete() {
   deleting.value = true
   try {
-    const response = await $fetch(`${FIREBASE_URL}/${deletingProductId.value}.json`, {
-      method: 'DELETE'
-    })
+    await removeFirebaseData(`/products/${deletingProductId.value}`)
     
-    if (response === null) {
-      alert('تم حذف المنتج بنجاح')
-      // Close modal
-      const modal = bootstrap.Modal.getInstance(document.getElementById('deleteProductModal'))
-      modal.hide()
-      // Refresh data
-      await refresh()
-    }
+    // Show success message
+    showToast('تم حذف المنتج بنجاح', 'success')
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteProductModal'))
+    modal.hide()
+    
+    // Refresh data
+    await loadProducts()
   } catch (error) {
     console.error('Error deleting product:', error)
-    alert('حدث خطأ أثناء حذف المنتج')
+    showToast('حدث خطأ أثناء حذف المنتج', 'error')
   } finally {
     deleting.value = false
     deletingProductId.value = null
   }
 }
 
-// Load Bootstrap on mount
-onMounted(() => {
-  // Load Bootstrap JS if not already loaded
-  if (typeof bootstrap === 'undefined') {
-    const script = document.createElement('script')
-    script.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js'
-    document.head.appendChild(script)
+// Toast notification function
+function showToast(message, type = 'success') {
+  const toast = document.createElement('div')
+  toast.className = `toast-${type}`
+  toast.innerHTML = `
+    <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i>
+    ${message}
+  `
+  document.body.appendChild(toast)
+  
+  // Remove toast after 3 seconds
+  setTimeout(() => {
+    if (document.body.contains(toast)) {
+      document.body.removeChild(toast)
+    }
+  }, 3000)
+}
+
+// Category helper functions
+function getCategoryBadgeClass(category) {
+  switch (category) {
+    case 'man':
+      return 'bg-primary'
+    case 'women':
+      return 'bg-secondary'
+    case 'lapels':
+      return 'bg-success'
+    default:
+      return 'bg-secondary'
   }
-})
+}
+
+function getCategoryDisplayName(category) {
+  switch (category) {
+    case 'man':
+      return 'رجالي'
+    case 'women':
+      return 'نسائي'
+    case 'lapels':
+      return 'بلبس'
+    default:
+      return 'غير معروف'
+  }
+}
 </script>
 
 <style scoped>
@@ -427,5 +632,53 @@ onMounted(() => {
 
 .badge {
   font-size: 0.8rem;
+}
+
+.toast-success {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #48bb78;
+  color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1000;
+  animation: slideIn 0.3s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.toast-error {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #f56565;
+  color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1000;
+  animation: slideIn 0.3s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Make text-muted white for better visibility */
+.text-muted {
+  color: white !important;
 }
 </style> 

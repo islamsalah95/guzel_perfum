@@ -25,6 +25,39 @@
               <li class="nav-item">
                 <a class="nav-link" href="/#contact">تواصل معنا</a>
               </li>
+              
+              <!-- Authentication Links -->
+              <li v-if="isAuthenticated" class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="bi bi-person-circle me-1"></i>
+                  {{ user?.email }}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li v-if="isAdmin">
+                    <a class="dropdown-item" href="/admin">
+                      <i class="bi bi-speedometer2 me-2"></i>
+                      لوحة الإدارة
+                    </a>
+                    <a class="dropdown-item" href="/crud">
+                      <i class="bi bi-gear me-2"></i>
+                      إدارة المنتجات
+                    </a>
+                    <div class="dropdown-divider"></div>
+                  </li>
+                  <li>
+                    <button class="dropdown-item" @click="logout">
+                      <i class="bi bi-box-arrow-right me-2"></i>
+                      تسجيل الخروج
+                    </button>
+                  </li>
+                </ul>
+              </li>
+              <li v-else class="nav-item">
+                <a class="nav-link btn btn-outline-light btn-sm" href="/login">
+                  <i class="bi bi-box-arrow-in-right me-1"></i>
+                  تسجيل الدخول
+                </a>
+              </li>
             </ul>
           </div>
         </div>
@@ -63,4 +96,66 @@
       </div>
     </footer>
   </div>
-</template> 
+</template>
+
+<script setup>
+const { user, isAuthenticated, isAdmin, logout, initAuth } = useAuth()
+
+// Load Bootstrap JS for dropdown functionality
+onMounted(() => {
+  // Initialize auth listener
+  const unsubscribe = initAuth()
+  
+  if (typeof bootstrap === 'undefined') {
+    const script = document.createElement('script')
+    script.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js'
+    document.head.appendChild(script)
+  }
+  
+  // Set current year in footer
+  const yearElement = document.getElementById('year')
+  if (yearElement) {
+    yearElement.textContent = new Date().getFullYear()
+  }
+  
+  // Cleanup on unmount
+  onUnmounted(() => {
+    if (unsubscribe) {
+      unsubscribe()
+    }
+  })
+})
+</script>
+
+<style scoped>
+.dropdown-menu {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-item {
+  color: #333;
+  transition: all 0.3s ease;
+}
+
+.dropdown-item:hover {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+.dropdown-divider {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.btn-outline-light {
+  border-color: rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.btn-outline-light:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+</style> 

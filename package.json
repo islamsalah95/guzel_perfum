@@ -10,11 +10,12 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@netlify/blobs": "8.2.0",
+    "@netlify/functions": "3.1.10",
+    "firebase": "^11.9.1",
     "nuxt": "^3.17.5",
     "vue": "^3.5.17",
-    "vue-router": "^4.5.1",
-    "@netlify/blobs": "8.2.0",
-    "@netlify/functions": "3.1.10"
+    "vue-router": "^4.5.1"
   },
   "resolutions": {
     "@netlify/blobs": "8.2.0"
