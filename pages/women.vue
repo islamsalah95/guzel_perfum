@@ -4,7 +4,7 @@
       أفضل العطور الحريمى
     </h2>
     <div class="row g-4 justify-content-center">
-      <template v-if="pending">
+      <template v-if="loading">
         <div class="col-12 text-center py-5">
           <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">جار التحميل...</span>
@@ -30,13 +30,25 @@
 import { useProducts } from '~/composables/useProducts';
 import ProductCard from '~/components/ProductCard.vue';
 import { useHead } from '#app';
+import { onMounted } from 'vue';
 
-const { products, pending } = useProducts({ category: 'women' });
+const { products, loading, loadProducts } = useProducts({ category: 'women' });
 
 useHead({
-  title: 'أفضل العطور الحريمى | Güzel',
+  title: 'عطور نسائية فاخرة | Güzel',
   meta: [
-    { name: 'description', content: 'أفضل العطور الحريمى من متجر Güzel. اكتشف تشكيلتنا المختارة من العطور النسائية الفاخرة.' },
+    { name: 'description', content: 'اكتشف تشكيلة العطور النسائية الفاخرة من Güzel. عطور أصلية بروائح مميزة تدوم طويلاً. تسوق الآن مع ضمان الجودة.' },
+    { name: 'keywords', content: 'عطور نسائية, عطور حريمي, عطور فاخرة للنساء, عطور مصر نسائي, عطور أصلية نسائي' },
+    { property: 'og:title', content: 'عطور نسائية فاخرة | Güzel' },
+    { property: 'og:description', content: 'اكتشف تشكيلة العطور النسائية الفاخرة من Güzel' },
   ],
 });
+
+// Load products on mount
+onMounted(async () => {
+  // Wait a moment for auth to initialize
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  await loadProducts()
+})
 </script> 

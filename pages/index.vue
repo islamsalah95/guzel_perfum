@@ -99,7 +99,7 @@
       العطور الأكثر مبيعًا
     </h2>
     <div class="row g-4 justify-content-center">
-      <template v-if="pending">
+      <template v-if="loading">
         <div class="col-12 text-center py-5">
           <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">جار التحميل...</span>
@@ -316,13 +316,33 @@ import { useProducts } from '~/composables/useProducts';
 import ProductCard from '~/components/ProductCard.vue';
 import { useHead } from '#app';
 import { NuxtLink } from '#components';
+import { onMounted } from 'vue';
 
-const { products, pending } = useProducts({ best_seller: true });
-
+// SEO
 useHead({
-  title: 'العطور الأكثر مبيعًا | Güzel',
+  title: 'Güzel | متجر عطور فاخر - أفضل العطور الأكثر مبيعًا في مصر',
   meta: [
-    { name: 'description', content: 'أفضل العطور الأكثر مبيعًا من متجر Güzel. اكتشف تشكيلتنا المختارة من العطور الفاخرة.' },
-  ],
-});
+    { name: 'description', content: 'اكتشف أفضل العطور الفاخرة في مصر. عطور أصلية للرجال والنساء، روائح تأسر الحواس وتدوم طويلاً. تسوق الآن مع ضمان الجودة والتوصيل السريع.' },
+    { name: 'keywords', content: 'عطور, عطور فاخرة, عطور رجالية, عطور نسائية, عطور مصر, عطور أصلية, عطور للبيع, عطور فخمة' },
+    { property: 'og:title', content: 'Güzel | متجر عطور فاخر - أفضل العطور الأكثر مبيعًا في مصر' },
+    { property: 'og:description', content: 'اكتشف أفضل العطور الفاخرة في مصر. عطور أصلية للرجال والنساء، روائح تأسر الحواس وتدوم طويلاً.' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:url', content: 'https://guzel-perfumes.com' },
+    { property: 'og:image', content: '/logo.png' },
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: 'Güzel | متجر عطور فاخر' },
+    { name: 'twitter:description', content: 'اكتشف أفضل العطور الفاخرة في مصر' },
+    { name: 'twitter:image', content: '/logo.png' }
+  ]
+})
+
+const { products, loading, loadProducts } = useProducts({ best_seller: true });
+
+// Load products on mount
+onMounted(async () => {
+  // Wait a moment for auth to initialize
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  await loadProducts()
+})
 </script> 
