@@ -1,0 +1,1 @@
+import{E as u,F as n,q as o}from"./bb5wy1fZ.js";import{u as s}from"./C_MYWIpT.js";const m=u(async(c,l)=>{let e,r;try{const{isAuthenticated:t,initAuth:a,waitForAuth:i}=s();if(a(),[e,r]=n(()=>i()),await e,r(),!t.value)return o("/login")}catch(t){return console.error("Error in auth middleware:",t),o("/login")}});export{m as default};

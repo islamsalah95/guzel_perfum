@@ -1,0 +1,1 @@
+import{E as s,F as n,q as a}from"./bb5wy1fZ.js";import{u as c}from"./C_MYWIpT.js";const A=s(async(d,l)=>{let t,r;try{const{isAuthenticated:e,isAdmin:o,initAuth:u,waitForAuth:i}=c();if(u(),[t,r]=n(()=>i()),await t,r(),e.value)return o.value?a("/crud"):a("/")}catch(e){console.error("Error in guest middleware:",e);return}});export{A as default};

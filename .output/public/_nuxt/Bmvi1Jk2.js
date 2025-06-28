@@ -1,0 +1,1 @@
+import{E as u,F as s,q as t}from"./bb5wy1fZ.js";import{u as d}from"./C_MYWIpT.js";const A=u(async(m,c)=>{let r,i;try{const{isAuthenticated:e,isAdmin:a,initAuth:o,waitForAuth:n}=d();if(o(),[r,i]=s(()=>n()),await r,i(),!e.value)return t("/login");if(!a.value)return t("/")}catch(e){return console.error("Error in admin middleware:",e),t("/login")}});export{A as default};
